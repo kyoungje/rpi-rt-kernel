@@ -1,13 +1,13 @@
 # set PLATFORM32 to something not null if you're building for older platforms, i.e. Pi 1, Pi Zero, Pi Zero W and Pi CM1
 # do not define PLATFORM32 or set it to null if you're building for newer platforms, i.e. Pi 3, Pi 3+, Pi 4, Pi 400, Pi Zero 2 W, Pi CM3, Pi CM3+, Pi CM4
-FROM ubuntu:24.04
+FROM ubuntu:22.04
 
 ARG PLATFORM32
 ARG RASPIOS_IMAGE_NAME
 
 ENV LINUX_KERNEL_VERSION=6.6
 ENV LINUX_KERNEL_BRANCH=rpi-${LINUX_KERNEL_VERSION}.y
-ENV LINUX_KERNEL_RT_PATCH=patch-6.6.30-rt30
+ENV LINUX_KERNEL_RT_PATCH=patch-6.6.31-rt31
 
 ENV TZ=Europe/Copenhagen
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
@@ -20,8 +20,8 @@ RUN apt-get install -y git make gcc bison flex libssl-dev bc ncurses-dev kmod \
 WORKDIR /rpi-kernel
 RUN git clone https://github.com/raspberrypi/linux.git -b ${LINUX_KERNEL_BRANCH} --depth=1
 WORKDIR /rpi-kernel/linux
-RUN curl https://mirrors.edge.kernel.org/pub/linux/kernel/projects/rt/${LINUX_KERNEL_VERSION}/older/${PATCH}.patch.gz --output ${PATCH}.patch.gz && \
-    gzip -cd /rpi-kernel/linux/${PATCH}.patch.gz | patch -p1 --verbose
+RUN curl https://mirrors.edge.kernel.org/pub/linux/kernel/projects/rt/${LINUX_KERNEL_VERSION}/older/${LINUX_KERNEL_RT_PATCH}.patch.gz --output ${LINUX_KERNEL_RT_PATCH}.patch.gz && \
+    gzip -cd /rpi-kernel/linux/${LINUX_KERNEL_RT_PATCH}.patch.gz | patch -p1 --verbose
 
 # if PLATFORM32 has been defined then set KERNEL=kernel else set KERNEL=kernel8 (arm64)
 ENV KERNEL=${PLATFORM32:+kernel}
@@ -43,6 +43,7 @@ RUN ./scripts/config --disable CONFIG_VIRTUALIZATION
 RUN ./scripts/config --enable CONFIG_PREEMPT_RT
 RUN ./scripts/config --disable CONFIG_RCU_EXPERT
 RUN ./scripts/config --enable CONFIG_RCU_BOOST
+RUN ./scripts/config --enable CONFIG_HZ_1000
 RUN [ "$ARCH" = "arm" ] && ./scripts/config --enable CONFIG_SMP || true
 RUN [ "$ARCH" = "arm" ] && ./scripts/config --disable CONFIG_BROKEN_ON_SMP || true
 RUN ./scripts/config --set-val CONFIG_RCU_BOOST_DELAY 500
